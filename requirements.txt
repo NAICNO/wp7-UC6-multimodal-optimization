@@ -1,0 +1,15 @@
+# Core dependencies
+numpy>=1.21
+pandas
+scikit-learn
+scipy>=1.9
+matplotlib>=3.7
+seaborn
+tqdm
+deap
+
+# Interactive notebooks
+jupyter>=1.0.0
+notebook
+ipywidgets
+jupyterlab
