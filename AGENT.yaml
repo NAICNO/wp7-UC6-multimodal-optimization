@@ -1,0 +1,274 @@
+# AI Agent Configuration for Multi-Modal Optimization (SHGA)
+# Machine-readable instructions for AI coding assistants
+
+metadata:
+  name: "NAIC Multi-Modal Optimization (SHGA)"
+  version: "1.0"
+  algorithm: "Scalable Hybrid Genetic Algorithm"
+  repository: "https://github.com/NAICNO/wp7-UC6-multimodal-optimization"
+  documentation: "https://naicno.github.io/wp7-UC6-multimodal-optimization/"
+  reference: "Johannsen et al. (2022) - Nordic Machine Intelligence"
+  description: |
+    SHGA combines global search via deterministic crowding genetic algorithm
+    with local refinement using CMA-ES to find multiple optima in continuous
+    optimization problems.
+
+prerequisites:
+  - "SSH access to NAIC Orchestrator VM"
+  - "VM IP address (see .env file)"
+  - "SSH key path (.pem file)"
+
+environment_check:
+  commands:
+    - description: "Check Python version"
+      command: "python3 --version"
+    - description: "Check GPU"
+      command: "nvidia-smi 2>/dev/null || echo 'No GPU'"
+setup:
+  steps:
+    - step: 1
+      description: "Clone repository"
+      command: "git clone https://github.com/NAICNO/wp7-UC6-multimodal-optimization.git"
+    - step: 2
+      description: "Enter directory"
+      command: "cd wp7-UC6-multimodal-optimization"
+    - step: 3
+      description: "Run setup script"
+      command: "./setup.sh"
+    - step: 4
+      description: "Activate environment"
+      command: "source venv/bin/activate"
+    - step: 5
+      description: "Set PYTHONPATH"
+      command: "export PYTHONPATH=\"${PYTHONPATH}:$(pwd):$(pwd)/benchmarks/CEC2013/python3\""
+    - step: 6
+      description: "Verify MMO module"
+      command: "python -c 'from mmo.minimize import MultiModalMinimizer; print(\"OK\")'"
+    - step: 7
+      description: "Verify CEC2013"
+      command: "python -c 'from cec2013.cec2013 import CEC2013; print(\"OK\")'"
+
+execution_modes:
+  python_api_parallel:
+    description: "Use MultiModalMinimizerParallel class for multi-core execution (recommended)"
+    example: |
+      from mmo.minimize_parallel import MultiModalMinimizerParallel
+      from mmo.domain import Domain
+      from cec2013.cec2013 import CEC2013
+
+      benchmark = CEC2013(4)  # Himmelblau
+      dim = benchmark.get_dimension()
+      lb = [benchmark.get_lbound(k) for k in range(dim)]
+      ub = [benchmark.get_ubound(k) for k in range(dim)]
+      domain = Domain(boundary=[lb, ub])
+
+      optimizer = MultiModalMinimizerParallel(
+          f=benchmark,
+          domain=domain,
+          budget=50000,
+          max_iter=50,
+          n_jobs=-1,  # Use all CPU cores
+          verbose=1
+      )
+
+      for result in optimizer:
+          print(f"Iter {result.number}: {result.n_sol} solutions")
+
+  python_api:
+    description: "Use MultiModalMinimizer class for sequential execution"
+    example: |
+      from mmo.minimize import MultiModalMinimizer
+      from mmo.domain import Domain
+      from cec2013.cec2013 import CEC2013
+
+      benchmark = CEC2013(4)  # Himmelblau
+      dim = benchmark.get_dimension()
+      lb = [benchmark.get_lbound(k) for k in range(dim)]
+      ub = [benchmark.get_ubound(k) for k in range(dim)]
+      domain = Domain(boundary=[lb, ub])
+
+      optimizer = MultiModalMinimizer(
+          f=benchmark,
+          domain=domain,
+          budget=50000,
+          verbose=1
+      )
+
+      for result in optimizer:
+          print(f"Iter {result.number}: {result.n_sol} solutions")
+
+  jupyter:
+    description: "Interactive notebook"
+    notebook_file: "demonstrator.ipynb"
+    start_command: "jupyter lab --no-browser --ip=127.0.0.1 --port=8888"
+    tunnel_command: "ssh -N -L 8888:localhost:8888 -i <SSH_KEY_PATH> ubuntu@<VM_IP>"
+    browser_url: "http://localhost:8888/lab/tree/demonstrator.ipynb"
+
+parallelization:
+  description: "Inner-loop parallelization for multi-core CPUs"
+  implementation: "joblib with loky backend (process-based)"
+  performance:
+    speedup: "3.2x on 16-core NAIC VM"
+    efficiency: "20%"
+    examples:
+      - function: "F4 (Himmelblau)"
+        speedup: "1.95x"
+      - function: "F5 (Six-Hump Camel)"
+        speedup: "1.21x"
+      - function: "F10 (Modified Rastrigin)"
+        speedup: "4.08x"
+  documentation: "PARALLELIZATION.md"
+  usage: "Use MultiModalMinimizerParallel with n_jobs=-1"
+
+api_parameters:
+  MultiModalMinimizerParallel:
+    - name: "f"
+      type: "callable"
+      required: true
+      description: "Function to minimize (d-dimensional input to scalar output)"
+    - name: "domain"
+      type: "Domain"
+      required: true
+      description: "Instance of Domain class defining search space"
+    - name: "budget"
+      type: "int"
+      default: "inf"
+      description: "Maximum function evaluations"
+    - name: "max_iter"
+      type: "int"
+      default: "inf"
+      description: "Maximum outer iterations"
+    - name: "max_sol"
+      type: "int"
+      default: "inf"
+      description: "Maximum solutions to find"
+    - name: "n_jobs"
+      type: "int"
+      default: -1
+      description: "Number of parallel jobs (-1 = all cores)"
+    - name: "verbose"
+      type: "int"
+      default: 0
+      range: "0-3"
+      description: "Verbosity level (0=silent, 1=summary, 2=GA details, 3=CMA details)"
+
+  MultiModalMinimizer:
+    - name: "f"
+      type: "callable"
+      required: true
+      description: "Function to minimize (d-dimensional input to scalar output)"
+    - name: "domain"
+      type: "Domain"
+      required: true
+      description: "Instance of Domain class defining search space"
+    - name: "budget"
+      type: "int"
+      default: "inf"
+      description: "Maximum function evaluations"
+    - name: "max_iter"
+      type: "int"
+      default: "inf"
+      description: "Maximum outer iterations"
+    - name: "max_sol"
+      type: "int"
+      default: "inf"
+      description: "Maximum solutions to find"
+    - name: "verbose"
+      type: "int"
+      default: 0
+      range: "0-3"
+      description: "Verbosity level (0=silent, 1=summary, 2=GA details, 3=CMA details)"
+
+benchmark_functions:
+  - id: 1
+    name: "Five-Uneven-Peak"
+    dimension: 1
+    optima: 2
+    budget: 50000
+  - id: 2
+    name: "Equal Maxima"
+    dimension: 1
+    optima: 5
+    budget: 50000
+  - id: 3
+    name: "Uneven Decreasing Max."
+    dimension: 1
+    optima: 1
+    budget: 50000
+  - id: 4
+    name: "Himmelblau"
+    dimension: 2
+    optima: 4
+    budget: 50000
+  - id: 5
+    name: "Six-Hump Camel Back"
+    dimension: 2
+    optima: 2
+    budget: 50000
+  - id: 6
+    name: "Shubert"
+    dimension: 2
+    optima: 18
+    budget: 200000
+  - id: 7
+    name: "Vincent"
+    dimension: 2
+    optima: 36
+    budget: 200000
+
+directory_structure:
+  setup_script: "setup.sh"
+  vm_init_script: "vm-init.sh"
+  requirements: "requirements.txt"
+  algorithm_module: "mmo/"
+  parallel_modules:
+    - "mmo/minimize_parallel.py"
+    - "mmo/ssc_parallel.py"
+  benchmarks: "benchmarks/CEC2013/python3/"
+  data: "data/"
+  notebook: "demonstrator.ipynb"
+  documentation: "content/"
+  parallelization_docs: "PARALLELIZATION.md"
+  test_scripts:
+    - "test_parallel_comparison.py"
+    - "test_full_benchmark_parallel.py"
+
+output:
+  attributes:
+    - name: "xy"
+      type: "numpy.ndarray"
+      shape: "(n_solutions, dim+1)"
+      description: "All found solutions. Each row is [x_0, x_1, ..., f_value]"
+    - name: "n_sol"
+      type: "int"
+      description: "Number of solutions found"
+    - name: "n_fev"
+      type: "int"
+      description: "Total function evaluations used"
+    - name: "iteration"
+      type: "int"
+      description: "Number of outer iterations completed"
+
+performance_metrics:
+  peak_ratio:
+    description: "Number of global optima found / Total known optima"
+    good: "> 0.7"
+    excellent: "= 1.0"
+  n_function_evaluations:
+    description: "Total function evaluations used"
+    target: "< budget"
+
+troubleshooting:
+  - issue: "ModuleNotFoundError: cec2013"
+    solution: "Set PYTHONPATH: export PYTHONPATH=\"${PYTHONPATH}:$(pwd)/benchmarks/CEC2013/python3\""
+  - issue: "ModuleNotFoundError: mmo"
+    solution: "Ensure venv activated and PYTHONPATH includes project root"
+  - issue: "Python version too old"
+    solution: "Install Python 3.8+ on your VM"
+
+
+verification:
+  checks:
+    - "Solutions found > 0"
+    - "Peak Ratio reported (if using CEC2013)"
+    - "No Python errors in output"

@@ -1,0 +1,52 @@
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+
+# CMA-ES runtime output
+mmo/.outcmaes/
+
+# IDE
+*.swp
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files with secrets
+.env
+.env.*
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Added for GitHub migration
+.coverage
+.pytest_cache/
+
+# CEC2013 benchmark is a git submodule — do not ignore the reference
+# but ignore any local build artifacts
+benchmarks/CEC2013/build/
